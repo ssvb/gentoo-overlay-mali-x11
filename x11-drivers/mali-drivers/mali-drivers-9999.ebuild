@@ -19,11 +19,11 @@ RDEPEND="${DEPEND} media-libs/mesa[gles1,gles2]"
 RESTRICT="test"
 
 pkg_setup() {
-	# expect the real libMali.so blob in /opt/mali/lib/ directory
-	if [ ! -e /opt/mali/lib/libMali.so ] ; then
+	# expect the real libMali.so blob in /opt/mali-x11/lib/ directory
+	if [ ! -e /opt/mali-x11/lib/libMali.so ] ; then
 		einfo
 		einfo "Please obtain the libMali.so library (with DRI2/X11 support enabled)"
-		einfo "library from your silicon vendor and put it into /opt/mali/lib/libMali.so"
+		einfo "from your silicon vendor and put it into /opt/mali-x11/lib/libMali.so"
 		einfo "before emerging this package."
 		einfo
 		einfo "    http://forums.arm.com/index.php?/topic/16259-how-can-i-upgrade-mali-device-driver/page__p__39744#entry39744"
@@ -40,11 +40,11 @@ pkg_setup() {
 src_compile() {
 	# build shared library stubs with the right sonames
 	gcc -shared -Wl,-soname,libEGL.so.1 -o libEGL.so.1 \
-		"${ROOT}"/opt/mali/lib/libMali.so || die
+		"${ROOT}"/opt/mali-x11/lib/libMali.so || die
 	gcc -shared -Wl,-soname,libGLESv1_CM.so.1 -o libGLESv1_CM.so.1 \
-		"${ROOT}"/opt/mali/lib/libMali.so || die
+		"${ROOT}"/opt/mali-x11/lib/libMali.so || die
 	gcc -shared -Wl,-soname,libGLESv2.so.2 -o libGLESv2.so.2 \
-		"${ROOT}"/opt/mali/lib/libMali.so || die
+		"${ROOT}"/opt/mali-x11/lib/libMali.so || die
 }
 
 src_install() {
@@ -57,7 +57,7 @@ src_install() {
 	dolib.so libGLESv2.so.2
 
 	# symlink for libMali.so
-	dosym "/opt/mali/lib/libMali.so" "/usr/$(get_libdir)/libMali.so"
+	dosym "/opt/mali-x11/lib/libMali.so" "/usr/$(get_libdir)/libMali.so"
 
 	# make the symlinks for EGL/GLES stuff
 	dosym "${opengl_dir}/lib/libEGL.so.1" "${opengl_dir}/lib/libEGL.so"
