@@ -40,11 +40,11 @@ pkg_setup() {
 src_compile() {
 	# build shared library stubs with the right sonames
 	gcc -shared -Wl,-soname,libEGL.so.1 -o libEGL.so.1 \
-		"${ROOT}"/opt/mali-x11/lib/libMali.so || die
+		-L/opt/mali-x11/lib -lMali || die
 	gcc -shared -Wl,-soname,libGLESv1_CM.so.1 -o libGLESv1_CM.so.1 \
-		"${ROOT}"/opt/mali-x11/lib/libMali.so || die
+		-L/opt/mali-x11/lib -lMali || die
 	gcc -shared -Wl,-soname,libGLESv2.so.2 -o libGLESv2.so.2 \
-		"${ROOT}"/opt/mali-x11/lib/libMali.so || die
+		-L/opt/mali-x11/lib -lMali || die
 }
 
 src_install() {
