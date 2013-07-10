@@ -25,6 +25,7 @@ src_prepare() {
 	rm -rf ${S}/src/libpng
 	sed -i -e 's#libpng12#libpng#g' ${S}/wscript ${S}/src/wscript_build || die
 	sed -i -e 's#voidp#void *#g' ${S}/src/image-reader.cpp || die
+	sed -i -e 's#GLchar#char#g' ${S}/src/libmatrix/program.cc || die
 }
 
 src_configure() {
