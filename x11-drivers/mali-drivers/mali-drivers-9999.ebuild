@@ -38,13 +38,15 @@ pkg_setup() {
 }
 
 src_compile() {
-	# build shared library stubs with the right sonames
-	gcc -shared -Wl,-soname,libEGL.so.1 -o libEGL.so.1 \
+	# HACK: build dummy library stubs with the right sonames
+	# to satisfy eselect-opengl
+	gcc -shared -Wl,-soname,libEGL.so.1 -o libEGLcore.so \
 		-L/opt/mali-x11/lib -lMali || die
-	gcc -shared -Wl,-soname,libGLESv1_CM.so.1 -o libGLESv1_CM.so.1 \
+	gcc -shared -Wl,-soname,libGLESv1_CM.so.1 -o libGLESv1_CM_core.so \
 		-L/opt/mali-x11/lib -lMali || die
-	gcc -shared -Wl,-soname,libGLESv2.so.2 -o libGLESv2.so.2 \
+	gcc -shared -Wl,-soname,libGLESv2.so.2 -o libGLESv2_core.so \
 		-L/opt/mali-x11/lib -lMali || die
+	touch .gles-only
 }
 
 src_install() {
@@ -52,35 +54,40 @@ src_install() {
 	local opengl_dir="/usr/$(get_libdir)/opengl/${opengl_imp}"
 
 	into "${opengl_dir}"
-	dolib.so libEGL.so.1
-	dolib.so libGLESv1_CM.so.1
-	dolib.so libGLESv2.so.2
+	# install dummy libraries
+	dolib.so libEGLcore.so
+	dolib.so libGLESv1_CM_core.so
+	dolib.so libGLESv2_core.so
 
 	# symlink for libMali.so
 	dosym "/opt/mali-x11/lib/libMali.so" "/usr/$(get_libdir)/libMali.so"
 
 	# make the symlinks for EGL/GLES stuff
-	dosym "${opengl_dir}/lib/libEGL.so.1" "${opengl_dir}/lib/libEGL.so"
-	dosym "${opengl_dir}/lib/libGLESv1_CM.so.1" "${opengl_dir}/lib/libGLESv1_CM.so"
-	dosym "${opengl_dir}/lib/libGLESv2.so.2" "${opengl_dir}/lib/libGLESv2.so"
-
-	# fallback to mesa for libGL.so
-	dosym "/usr/$(get_libdir)/opengl/xorg-x11/lib/libGL.so" "${opengl_dir}/lib/libGL.so"
-	dosym "/usr/$(get_libdir)/opengl/xorg-x11/lib/libGL.so.1" "${opengl_dir}/lib/libGL.so.1"
+	dosym "/usr/$(get_libdir)/libMali.so" "${opengl_dir}/lib/libEGL.so" 
+	dosym "/usr/$(get_libdir)/libMali.so" "${opengl_dir}/lib/libEGL.so.1" 
+	dosym "/usr/$(get_libdir)/libMali.so" "${opengl_dir}/lib/libGLESv1_CM.so"
+	dosym "/usr/$(get_libdir)/libMali.so" "${opengl_dir}/lib/libGLESv1_CM.so.1"
+	dosym "/usr/$(get_libdir)/libMali.so" "${opengl_dir}/lib/libGLESv2.so"
+	dosym "/usr/$(get_libdir)/libMali.so" "${opengl_dir}/lib/libGLESv2.so.2"
 
 	# udev rules to get the right ownership/permission for /dev/ump and /dev/mali
 	insinto /lib/udev/rules.d
 	doins "${FILESDIR}"/99-mali-drivers.rules
+
+	insinto "${opengl_dir}"
+	doins .gles-only
 }
 
 pkg_postinst() {
-	"${ROOT}"/usr/bin/eselect opengl set --use-old mali
-
 	elog "You must be in the video group to use the Mali 3D acceleration."
 	elog
 	elog "To use the Mali OpenGL ES libraries, run \"eselect opengl set mali\""
 }
 
+pkg_prerm() {
+	"${ROOT}"/usr/bin/eselect opengl set --use-old --ignore-missing xorg-x11
+}
+
 pkg_postrm() {
-	"${ROOT}"/usr/bin/eselect opengl set --use-old xorg-x11
+	"${ROOT}"/usr/bin/eselect opengl set --use-old --ignore-missing xorg-x11
 }
