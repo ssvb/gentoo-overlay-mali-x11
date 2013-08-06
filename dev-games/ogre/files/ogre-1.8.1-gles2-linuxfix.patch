@@ -1,0 +1,401 @@
+From 97fa4510663c11a315d294e5722ca15379802b46 Mon Sep 17 00:00:00 2001
+From: Siarhei Siamashka <siarhei.siamashka@gmail.com>
+Date: Mon, 5 Aug 2013 15:23:19 +0000
+Subject: [PATCH] Treat OGRE_PLATFORM_LINUX the same as OGRE_PLATFORM_NACL for
+ GLES2
+
+Otherwise Ogre happily assumes that all the possible GLESv2 extensions
+are avilable (including EXT_debug_label). As a result, for nouveau
+and mali400 drivers we had the following problem:
+
+./SampleBrowser: symbol lookup error: /usr/lib/OGRE/RenderSystem_GLES2.so: undefined symbol: glLabelObjectEXT
+
+Additionally, the changes related to BGRA handling are also needed in
+order not to get the black screen instead of the nice demos for mali400
+drivers (nouveau is not affected by this problem).
+
+And even with these fixes, not all the standard Ogre demos can run
+successfully. Some of them segfault. Some of them refuse to run with
+a message box telling us that the feature is not supported.
+---
+ RenderSystems/GLES2/include/OgreGLES2Prerequisites.h |  2 +-
+ .../GLES2/src/GLSLES/src/OgreGLSLESExtSupport.cpp    |  4 ++--
+ .../GLES2/src/GLSLES/src/OgreGLSLESProgram.cpp       |  4 ++--
+ .../src/GLSLES/src/OgreGLSLESProgramPipeline.cpp     | 12 ++++++------
+ .../GLES2/src/OgreGLES2FBORenderTexture.cpp          |  2 +-
+ .../GLES2/src/OgreGLES2FrameBufferObject.cpp         |  4 ++--
+ .../GLES2/src/OgreGLES2HardwarePixelBuffer.cpp       |  8 ++++----
+ RenderSystems/GLES2/src/OgreGLES2PixelFormat.cpp     | 20 ++++++++++----------
+ RenderSystems/GLES2/src/OgreGLES2RenderSystem.cpp    | 10 +++++-----
+ RenderSystems/GLES2/src/OgreGLES2Texture.cpp         |  4 ++--
+ RenderSystems/GLES2/src/OgreGLES2TextureManager.cpp  |  2 +-
+ 11 files changed, 36 insertions(+), 36 deletions(-)
+
+diff --git a/RenderSystems/GLES2/include/OgreGLES2Prerequisites.h b/RenderSystems/GLES2/include/OgreGLES2Prerequisites.h
+index 3b14428..ef7ddcb 100644
+--- a/RenderSystems/GLES2/include/OgreGLES2Prerequisites.h
++++ b/RenderSystems/GLES2/include/OgreGLES2Prerequisites.h
+@@ -109,7 +109,7 @@ extern PFNGLGETTEXLEVELPARAMETERiVNVPROC glGetTexLevelParameterivNV;
+ // Define GL_NONE for convenience
+ #define GL_NONE 0
+ 
+-#if !defined(GL_BGRA) && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if !defined(GL_BGRA) && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+ #   define GL_BGRA  0x80E1
+ #endif
+ 
+diff --git a/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESExtSupport.cpp b/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESExtSupport.cpp
+index a98ef5c..ccf1819 100644
+--- a/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESExtSupport.cpp
++++ b/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESExtSupport.cpp
+@@ -46,7 +46,7 @@ namespace Ogre
+                 glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &infologLength);
+                 GL_CHECK_ERROR
+             }
+-#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             else if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS) &&
+                     glIsProgramPipelineEXT(obj))
+             {
+@@ -74,7 +74,7 @@ namespace Ogre
+                     glGetShaderInfoLog(obj, infologLength, &charsWritten, infoLog);
+                     GL_CHECK_ERROR
+                 }
+-#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+                 else if(Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_SEPARATE_SHADER_OBJECTS) &&
+                         glIsProgramPipelineEXT(obj))
+                 {
+diff --git a/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgram.cpp b/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgram.cpp
+index 3965f91..7cba1e9 100644
+--- a/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgram.cpp
++++ b/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgram.cpp
+@@ -187,7 +187,7 @@ namespace Ogre {
+ 			mGLShaderHandle = glCreateShader(shaderType);
+             GL_CHECK_ERROR
+ 
+-#if GL_EXT_debug_label && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_debug_label && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             glLabelObjectEXT(GL_SHADER_OBJECT_EXT, mGLShaderHandle, 0, mName.c_str());
+ #endif
+ 
+@@ -195,7 +195,7 @@ namespace Ogre {
+             {
+                 mGLProgramHandle = glCreateProgram();
+                 GL_CHECK_ERROR
+-#if GL_EXT_debug_label && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_debug_label && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+                 glLabelObjectEXT(GL_PROGRAM_OBJECT_EXT, mGLProgramHandle, 0, mName.c_str());
+ #endif
+             }
+diff --git a/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgramPipeline.cpp b/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgramPipeline.cpp
+index 9499e37..909f5fa 100644
+--- a/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgramPipeline.cpp
++++ b/RenderSystems/GLES2/src/GLSLES/src/OgreGLSLESProgramPipeline.cpp
+@@ -40,7 +40,7 @@ namespace Ogre
+ 
+     GLSLESProgramPipeline::~GLSLESProgramPipeline()
+     {
+-#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         glDeleteProgramPipelinesEXT(1, &mGLProgramPipelineHandle);
+         GL_CHECK_ERROR;
+ #endif
+@@ -48,7 +48,7 @@ namespace Ogre
+ 
+     void GLSLESProgramPipeline::compileAndLink()
+ 	{
+-#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         GLint linkStatus = 0;
+         
+         glGenProgramPipelinesEXT(1, &mGLProgramPipelineHandle);
+@@ -168,7 +168,7 @@ namespace Ogre
+ 
+             // Validate pipeline
+             logObjectInfo( getCombinedName() + String("GLSL program pipeline result : "), mGLProgramPipelineHandle );
+-#if GL_EXT_debug_label && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_debug_label && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             glLabelObjectEXT(GL_PROGRAM_PIPELINE_OBJECT_EXT, mGLProgramPipelineHandle, 0,
+                              (mVertexProgram->getName() + "/" + mFragmentProgram->getName()).c_str());
+ #endif
+@@ -180,7 +180,7 @@ namespace Ogre
+     {
+ 		if (mLinked)
+ 		{
+-#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             GL_CHECK_ERROR
+             glBindProgramPipelineEXT(mGLProgramPipelineHandle);
+             GL_CHECK_ERROR
+@@ -299,7 +299,7 @@ namespace Ogre
+ 		// Iterate through uniform reference list and update uniform values
+ 		GLUniformReferenceIterator currentUniform = mGLUniformReferences.begin();
+ 		GLUniformReferenceIterator endUniform = mGLUniformReferences.end();
+-#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         GLuint progID = 0;
+         if(fromProgType == GPT_VERTEX_PROGRAM)
+             progID = mVertexProgram->getGLSLProgram()->getGLProgramHandle();
+@@ -409,7 +409,7 @@ namespace Ogre
+ 				// Get the index in the parameter real list
+ 				if (index == currentUniform->mConstantDef->physicalIndex)
+ 				{
+-#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_separate_shader_objects && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+                     GLuint progID = 0;
+                     if (mVertexProgram && currentUniform->mSourceProgType == GPT_VERTEX_PROGRAM)
+                     {
+diff --git a/RenderSystems/GLES2/src/OgreGLES2FBORenderTexture.cpp b/RenderSystems/GLES2/src/OgreGLES2FBORenderTexture.cpp
+index 5067d40..e4e8fb0 100644
+--- a/RenderSystems/GLES2/src/OgreGLES2FBORenderTexture.cpp
++++ b/RenderSystems/GLES2/src/OgreGLES2FBORenderTexture.cpp
+@@ -286,7 +286,7 @@ namespace Ogre {
+ 				glBindTexture(target, tid);
+ 
+                 // Set some default parameters
+-#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+                 glTexParameteri(target, GL_TEXTURE_MAX_LEVEL_APPLE, 0);
+ #endif
+                 glTexParameteri(target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+diff --git a/RenderSystems/GLES2/src/OgreGLES2FrameBufferObject.cpp b/RenderSystems/GLES2/src/OgreGLES2FrameBufferObject.cpp
+index f19377d..40f1412 100644
+--- a/RenderSystems/GLES2/src/OgreGLES2FrameBufferObject.cpp
++++ b/RenderSystems/GLES2/src/OgreGLES2FrameBufferObject.cpp
+@@ -46,7 +46,7 @@ namespace Ogre {
+         mMultisampleFB = 0;
+ 
+         // Check multisampling if supported
+-#if GL_APPLE_framebuffer_multisample && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_WIN32
++#if GL_APPLE_framebuffer_multisample && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_WIN32 && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         // Check samples supported
+         glBindFramebuffer(GL_FRAMEBUFFER, mFB);
+         GLint maxSamples;
+@@ -244,7 +244,7 @@ namespace Ogre {
+ 	{
+ 		if (mMultisampleFB)
+ 		{
+-#if GL_APPLE_framebuffer_multisample && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_WIN32
++#if GL_APPLE_framebuffer_multisample && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_WIN32 && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+ 			// Blit from multisample buffer to final buffer, triggers resolve
+ //			size_t width = mColour[0].buffer->getWidth();
+ //			size_t height = mColour[0].buffer->getHeight();
+diff --git a/RenderSystems/GLES2/src/OgreGLES2HardwarePixelBuffer.cpp b/RenderSystems/GLES2/src/OgreGLES2HardwarePixelBuffer.cpp
+index 0d28d4a..bbbe9d9 100644
+--- a/RenderSystems/GLES2/src/OgreGLES2HardwarePixelBuffer.cpp
++++ b/RenderSystems/GLES2/src/OgreGLES2HardwarePixelBuffer.cpp
+@@ -159,7 +159,7 @@ namespace Ogre {
+                 scaled.format = PF_B8G8R8;
+                 PixelUtil::bulkPixelConversion(src, scaled);
+             }
+-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL
++#if OGRE_PLATFORM == OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             if (src.format == PF_A8R8G8B8)
+             {
+                 scaled.format = PF_A8B8G8R8;
+@@ -588,7 +588,7 @@ namespace Ogre {
+             GL_CHECK_ERROR;
+             glBindTexture(GL_TEXTURE_2D, tempTex);
+             GL_CHECK_ERROR;
+-#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL_APPLE, 0);
+             GL_CHECK_ERROR;
+ #endif
+@@ -792,7 +792,7 @@ namespace Ogre {
+         glBindTexture(target, id);
+         GL_CHECK_ERROR;
+ 
+-#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         glTexParameteri(target, GL_TEXTURE_MAX_LEVEL_APPLE, 1000 );
+         GL_CHECK_ERROR;
+ #endif
+@@ -910,7 +910,7 @@ namespace Ogre {
+         // Allocate storage for depth buffer
+         if (numSamples > 0)
+         {
+-#if GL_APPLE_framebuffer_multisample && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_WIN32
++#if GL_APPLE_framebuffer_multisample && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_WIN32 && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             glRenderbufferStorageMultisampleAPPLE(GL_RENDERBUFFER, 
+                                                 numSamples, format, width, height);
+             GL_CHECK_ERROR;
+diff --git a/RenderSystems/GLES2/src/OgreGLES2PixelFormat.cpp b/RenderSystems/GLES2/src/OgreGLES2PixelFormat.cpp
+index 64be656..7014d44 100644
+--- a/RenderSystems/GLES2/src/OgreGLES2PixelFormat.cpp
++++ b/RenderSystems/GLES2/src/OgreGLES2PixelFormat.cpp
+@@ -43,7 +43,7 @@ namespace Ogre  {
+             case PF_L8:
+             case PF_L16:
+                 return GL_LUMINANCE;
+-#if GL_OES_texture_half_float && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_OES_texture_half_float && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             case PF_FLOAT16_RGB:
+             case PF_FLOAT32_RGB:
+                 return GL_RGB;
+@@ -52,7 +52,7 @@ namespace Ogre  {
+                 return GL_RGBA;
+ #endif
+ 
+-#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             case PF_FLOAT16_R:
+             case PF_FLOAT32_R:
+             case PF_R8:
+@@ -68,7 +68,7 @@ namespace Ogre  {
+                 return GL_LUMINANCE_ALPHA;
+ 
+             // PVRTC compressed formats
+-#if GL_IMG_texture_compression_pvrtc && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_IMG_texture_compression_pvrtc && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             case PF_PVRTC_RGB2:
+                 return GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG;
+             case PF_PVRTC_RGB4:
+@@ -90,7 +90,7 @@ namespace Ogre  {
+             case PF_A8B8G8R8:
+             case PF_B8G8R8A8:
+             case PF_A2R10G10B10:
+-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+                 return GL_BGRA;
+ #endif
+             case PF_X8B8G8R8:
+@@ -143,12 +143,12 @@ namespace Ogre  {
+             case PF_FLOAT16_GR:
+             case PF_FLOAT16_RGB:
+             case PF_FLOAT16_RGBA:
+-#if GL_OES_texture_half_float && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_OES_texture_half_float && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+                 return GL_HALF_FLOAT_OES;
+ #else
+                 return 0;
+ #endif
+-#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             case PF_R8:
+             case PF_RG8:
+                 return GL_UNSIGNED_BYTE;
+@@ -157,7 +157,7 @@ namespace Ogre  {
+             case PF_FLOAT32_GR:
+             case PF_FLOAT32_RGB:
+             case PF_FLOAT32_RGBA:
+-#if GL_OES_texture_float && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_OES_texture_float && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+                 return GL_FLOAT;
+ #endif
+             default:
+@@ -179,7 +179,7 @@ namespace Ogre  {
+             case PF_BYTE_LA:
+                 return GL_LUMINANCE_ALPHA;
+ 
+-#if GL_IMG_texture_compression_pvrtc && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_IMG_texture_compression_pvrtc && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             case PF_PVRTC_RGB2:
+                 return GL_COMPRESSED_RGB_PVRTC_2BPPV1_IMG;
+             case PF_PVRTC_RGB4:
+@@ -203,7 +203,7 @@ namespace Ogre  {
+             case PF_FLOAT32_RGBA:
+                 return GL_RGBA;
+ 
+-#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             case PF_FLOAT16_R:
+             case PF_FLOAT32_R:
+             case PF_R8:
+@@ -288,7 +288,7 @@ namespace Ogre  {
+             case GL_RGBA8_OES:
+                 return PF_A8R8G8B8;
+ 
+-#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_texture_rg && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+             case GL_R8_EXT:
+                 return PF_R8;
+             case GL_RG8_EXT:
+diff --git a/RenderSystems/GLES2/src/OgreGLES2RenderSystem.cpp b/RenderSystems/GLES2/src/OgreGLES2RenderSystem.cpp
+index deaa738..eb8ce5a 100644
+--- a/RenderSystems/GLES2/src/OgreGLES2RenderSystem.cpp
++++ b/RenderSystems/GLES2/src/OgreGLES2RenderSystem.cpp
+@@ -301,7 +301,7 @@ namespace Ogre {
+         rsc->setCapability(RSC_FRAGMENT_PROGRAM);
+ 
+         // Separate shader objects
+-#if OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         if(mGLSupport->checkExtension("GL_EXT_separate_shader_objects"))
+             rsc->setCapability(RSC_SEPARATE_SHADER_OBJECTS);
+ #endif
+@@ -325,7 +325,7 @@ namespace Ogre {
+         rsc->setGeometryProgramConstantIntCount(0);
+         
+         // Check for Float textures
+-#if GL_OES_texture_float || GL_OES_texture_half_float
++#if (GL_OES_texture_float || GL_OES_texture_half_float) && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         rsc->setCapability(RSC_TEXTURE_FLOAT);
+ #endif
+ 
+@@ -2150,7 +2150,7 @@ namespace Ogre {
+     //---------------------------------------------------------------------
+     void GLES2RenderSystem::beginProfileEvent( const String &eventName )
+     {
+-#if GL_EXT_debug_marker && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_debug_marker && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         glPushGroupMarkerEXT(0, eventName.c_str());
+ #endif
+     }
+@@ -2158,7 +2158,7 @@ namespace Ogre {
+     //---------------------------------------------------------------------
+     void GLES2RenderSystem::endProfileEvent( void )
+     {
+-#if GL_EXT_debug_marker && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_debug_marker && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         glPopGroupMarkerEXT();
+ #endif
+     }
+@@ -2169,7 +2169,7 @@ namespace Ogre {
+         if( eventName.empty() )
+             return;
+ 
+-#if GL_EXT_debug_marker && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_EXT_debug_marker && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         glInsertEventMarkerEXT(0, eventName.c_str());
+ #endif
+     }
+diff --git a/RenderSystems/GLES2/src/OgreGLES2Texture.cpp b/RenderSystems/GLES2/src/OgreGLES2Texture.cpp
+index 47ce123..de4a750 100644
+--- a/RenderSystems/GLES2/src/OgreGLES2Texture.cpp
++++ b/RenderSystems/GLES2/src/OgreGLES2Texture.cpp
+@@ -125,7 +125,7 @@ namespace Ogre {
+         mMipmapsHardwareGenerated =
+             Root::getSingleton().getRenderSystem()->getCapabilities()->hasCapability(RSC_AUTOMIPMAP) && !PixelUtil::isCompressed(mFormat);
+ 
+-#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         glTexParameteri( getGLES2TextureTarget(), GL_TEXTURE_MAX_LEVEL_APPLE, (mMipmapsHardwareGenerated && (mUsage & TU_AUTOMIPMAP)) ? maxMips : mNumMipmaps );
+ #endif
+ 
+@@ -236,7 +236,7 @@ namespace Ogre {
+ 				{
+ 					case TEX_TYPE_1D:
+ 					case TEX_TYPE_2D:
+-#if OGRE_PLATFORM == OGRE_PLATFORM_NACL
++#if OGRE_PLATFORM == OGRE_PLATFORM_NACL || OGRE_PLATFORM == OGRE_PLATFORM_LINUX
+                         if(internalformat != format)
+                         {
+                             LogManager::getSingleton().logMessage("glTexImage2D: format != internalFormat, "
+diff --git a/RenderSystems/GLES2/src/OgreGLES2TextureManager.cpp b/RenderSystems/GLES2/src/OgreGLES2TextureManager.cpp
+index 18c48ab..b571c95 100644
+--- a/RenderSystems/GLES2/src/OgreGLES2TextureManager.cpp
++++ b/RenderSystems/GLES2/src/OgreGLES2TextureManager.cpp
+@@ -81,7 +81,7 @@ namespace Ogre {
+         GL_CHECK_ERROR;
+         glBindTexture(GL_TEXTURE_2D, mWarningTextureID);
+         GL_CHECK_ERROR;
+-#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL
++#if GL_APPLE_texture_max_level && OGRE_PLATFORM != OGRE_PLATFORM_NACL && OGRE_PLATFORM != OGRE_PLATFORM_LINUX
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL_APPLE, 0);
+ #endif
+         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+-- 
+1.8.1.5
+
