@@ -1,0 +1,102 @@
+# HG changeset patch
+# Parent 32f31f8201b0dc1335b4e1ec5992c7233d99e101
+# User Nicholas Cameron <ncameron@mozilla.com>
+Bug 788319, get webgl working with EGL. r=
+
+diff --git a/content/canvas/src/Makefile.in b/content/canvas/src/Makefile.in
+--- a/content/canvas/src/Makefile.in
++++ b/content/canvas/src/Makefile.in
+@@ -81,9 +81,15 @@ INCLUDES	+= \
+ 		-I$(srcdir)/../../../layout/generic \
+ 		-I$(srcdir)/../../base/src \
+ 		-I$(srcdir)/../../html/content/src \
+ 		-I$(srcdir)/../../../js/xpconnect/src \
+ 		-I$(srcdir)/../../../dom/base \
+ 		-I$(topsrcdir)/content/xul/content/src \
+ 		$(NULL)
+ 
++# define MOZ_USE_EGL if we want to back WebGL with EGL, but we would not
++# otherwise expect it (i.e., not Android, ANGLE, etc.)
++ifeq ($(MOZ_GL_PROVIDER),EGL)
++DEFINES += -DMOZ_USE_EGL
++endif
++
+ DEFINES += -D_IMPL_NS_LAYOUT
+diff --git a/content/canvas/src/WebGLContext.cpp b/content/canvas/src/WebGLContext.cpp
+--- a/content/canvas/src/WebGLContext.cpp
++++ b/content/canvas/src/WebGLContext.cpp
+@@ -409,16 +409,21 @@ WebGLContext::SetDimensions(int32_t widt
+     NS_ENSURE_TRUE(Preferences::GetRootBranch(), NS_ERROR_FAILURE);
+ 
+ #ifdef XP_WIN
+     bool preferEGL =
+         Preferences::GetBool("webgl.prefer-egl", false);
+     bool preferOpenGL =
+         Preferences::GetBool("webgl.prefer-native-gl", false);
+ #endif
++#ifdef MOZ_USE_EGL
++    bool preferEGL = true;
++    bool preferOpenGL = false;
++    bool useANGLE = false;
++#endif
+     bool forceEnabled =
+         Preferences::GetBool("webgl.force-enabled", false);
+     bool useMesaLlvmPipe =
+         Preferences::GetBool("gfx.prefer-mesa-llvmpipe", false);
+     bool disabled =
+         Preferences::GetBool("webgl.disabled", false);
+     bool prefer16bit =
+         Preferences::GetBool("webgl.prefer-16bpp", false);
+@@ -499,23 +504,22 @@ WebGLContext::SetDimensions(int32_t widt
+     if (useMesaLlvmPipe || PR_GetEnv("MOZ_WEBGL_FORCE_OPENGL")) {
+         preferEGL = false;
+         useANGLE = false;
+         useOpenGL = true;
+     }
+ #endif
+ 
+     gfxIntSize size(width, height);
+-
+-#ifdef XP_WIN
++#if defined(XP_WIN) || defined(MOZ_USE_EGL)
+     // if we want EGL, try it now
+     if (!gl && (preferEGL || useANGLE) && !preferOpenGL) {
+         gl = gl::GLContextProviderEGL::CreateOffscreen(size, caps);
+         if (!gl || !InitAndValidateGL()) {
+-            GenerateWarning("Error during ANGLE OpenGL ES initialization");
++            GenerateWarning("Error during OpenGL ES initialization");
+             return NS_ERROR_FAILURE;
+         }
+     }
+ #endif
+ 
+     // try the default provider, whatever that is
+     if (!gl && useOpenGL) {
+         GLContext::ContextFlags flag = useMesaLlvmPipe 
+diff --git a/gfx/layers/opengl/CanvasLayerOGL.h b/gfx/layers/opengl/CanvasLayerOGL.h
+--- a/gfx/layers/opengl/CanvasLayerOGL.h
++++ b/gfx/layers/opengl/CanvasLayerOGL.h
+@@ -34,17 +34,23 @@ public:
+     , mDelayedUpdates(false)
+     , mIsGLAlphaPremult(false)
+     , mUploadTexture(0)
+ #if defined(GL_PROVIDER_GLX)
+     , mPixmap(0)
+ #endif
+   { 
+     mImplData = static_cast<LayerOGL*>(this);
++#if MOZ_GL_PROVIDER==EGL
++    //TODO
++    mForceReadback = true;
++#else
+     mForceReadback = Preferences::GetBool("webgl.force-layers-readback", false);
++#endif
++
+   }
+ 
+   ~CanvasLayerOGL() {
+     Destroy();
+   }
+ 
+   // CanvasLayer implementation
+   virtual void Initialize(const Data& aData);
