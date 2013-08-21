@@ -8,7 +8,7 @@ inherit cmake-utils git-2
 
 DESCRIPTION="The OpenGL Utility Library (GLU|ES subset)"
 HOMEPAGE="https://github.com/lunixbochs/glues"
-EGIT_REPO_URI="https://github.com/ssvb/glues.git"
+EGIT_REPO_URI="https://github.com/lunixbochs/glues.git"
 EGIT_BRANCH="glu"
 
 SLOT="0"
